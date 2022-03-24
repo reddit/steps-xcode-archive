@@ -166,25 +166,28 @@ func parseTarget(id string, objects serialized.Object) (Target, error) {
 		return Target{}, err
 	}
 
-	dependencyIDs, err := rawTarget.StringSlice("dependencies")
-	if err != nil {
-		return Target{}, err
-	}
-
 	var dependencies []TargetDependency
-	for _, dependencyID := range dependencyIDs {
-		dependency, err := parseTargetDependency(dependencyID, objects)
+	// NOTE: (@mattrob) This only parses "application" product types since that allows the export options to be correct.
+	if productType == "com.apple.product-type.application" || productType == "com.apple.product-type.app-extension" || productType == "com.apple.product-type.app-extension.messages-sticker-pack" {
+		dependencyIDs, err := rawTarget.StringSlice("dependencies")
 		if err != nil {
-			// KeyNotFoundError can be only raised if the 'target' property not found on the raw target dependency object
-			// we only care about target dependency, which points to a target
-			if serialized.IsKeyNotFoundError(err) {
-				continue
-			} else {
-				return Target{}, err
-			}
+			return Target{}, err
 		}
 
-		dependencies = append(dependencies, dependency)
+		for _, dependencyID := range dependencyIDs {
+			dependency, err := parseTargetDependency(dependencyID, objects)
+			if err != nil {
+				// KeyNotFoundError can be only raised if the 'target' property not found on the raw target dependency object
+				// we only care about target dependency, which points to a target
+				if serialized.IsKeyNotFoundError(err) {
+					continue
+				} else {
+					return Target{}, err
+				}
+			}
+	
+			dependencies = append(dependencies, dependency)
+		}
 	}
 
 	var productReference ProductReference
